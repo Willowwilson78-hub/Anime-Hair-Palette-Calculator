@@ -16,7 +16,57 @@
             --text-muted: #94a3b8;
             --accent: #d946ef;
         }
+.github-link {
+    position: fixed; 
+    bottom: 20px; 
+    right: 20px;  
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    text-decoration: none; 
+    padding: 10px 15px; /* Nới rộng vùng đệm để hiệu ứng glow không bị cắt cụt */
+    z-index: 1000;
+    border-radius: 8px;
+    
+    /* Cấu hình hiệu ứng Fade Glow chuyển động */
+    background: radial-gradient(circle at left, rgba(0, 123, 255, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+    background-size: 200% 100%;
+    background-position: right bottom; /* Mặc định giấu hiệu ứng glow ở bên phải */
+    transition: background-position 0.4s ease, transform 0.2s ease, filter 0.4s ease;
+}
 
+.github-link img {
+    width: 35px; 
+    height: 35px;
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.4)); 
+    border-radius: 50%; 
+    margin-bottom: 6px; 
+    transition: filter 0.4s ease;
+}
+
+/* CSS cho dòng chữ span bự hơn và sắc nét */
+.github-link span {
+    color: #007bff; 
+    font-size: 14px; /* Tăng kích thước chữ bự lên một xíu theo ý bạn */
+    font-family: sans-serif; 
+    font-weight: 600; /* Làm chữ đậm nét hơn để nhìn rõ ràng */
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6); 
+    transition: color 0.4s ease, text-shadow 0.4s ease;
+}
+
+.github-link:hover {
+    transform: translateY(-2px); 
+    background-position: left bottom; 
+    
+
+    filter: drop-shadow(0 0 8px rgba(0, 123, 255, 0.6)); 
+}
+
+.github-link:hover span {
+    color: #3395ff; 
+    text-shadow: 0 0 10px rgba(0, 123, 255, 0.8); 
+}
+}
         * {
             box-sizing: border-box;
             margin: 0;
@@ -304,6 +354,13 @@
     </style>
 </head> <body>
 
+<a href="https://github.com/willowwilson78-hub/Anime-Hair-Color-Calculator" 
+   target="_blank" 
+   rel="noopener noreferrer" 
+   class="github-link">
+   <img src="https://files.catbox.moe/cn2cts.png" alt="GitHub Logo">
+   <span>GitHub Repository</span>
+</a>
     <div class="glow-circle glow-1"></div>
     <div class="glow-circle glow-2"></div>
 
