@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<link rel="icon" type="image/png/jpg" href="https://files.catbox.moe/mdy952.jpg">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -65,7 +66,6 @@
             margin-bottom: 35px;
         }
 
-        /* --- LOGO STYLE --- */
         .project-logo {
             max-width: 120px;
             height: auto;
@@ -125,34 +125,16 @@
 
         .wheel-container {
             position: relative;
-            width: 220px;
-            height: 220px;
+            width: 260px;
+            height: 260px;
             margin: 10px 0;
             touch-action: none;
         }
 
         canvas {
-            border-radius: 50%;
             cursor: crosshair;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-            border: 2px solid var(--glass-border);
             width: 100%;
             height: 100%;
-        }
-
-        .wheel-pointer {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            border: 2.5px solid #ffffff;
-            border-radius: 50%;
-            background: transparent;
-            box-shadow: 0 0 6px rgba(0,0,0,0.8);
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            top: 50%;
-            left: 50%;
-            will-change: top, left;
         }
 
         .picker-wrapper {
@@ -335,20 +317,18 @@
 
     <div class="container">
         <header>
-            <!-- Favicon -->
-            <link rel="icon" type="image/png" href="https://files.catbox.moe/mdy952.jpg">
+            <img src="https://files.catbox.moe/xxxxxx.png" alt="Logo" class="project-logo" onerror="this.style.display='none'">
             <h1>Anime Hair Palette Generator</h1>
-            <p>Slide smoothly on the wheel or fine-tune sliders for real-time calculation</p>
+            <p>Select Hue from outer ring, control saturation/lightness on inner diamond</p>
         </header>
 
         <div class="workspace">
             <div class="control-panel">
                 <div class="input-group">
-                    <label>Base Color Selector</label>
+                    <label>Pro Color Wheel (Ibis Style)</label>
                     
                     <div class="wheel-container" id="wheelContainer">
-                        <canvas id="colorWheel" width="220" height="220"></canvas>
-                        <div class="wheel-pointer" id="wheelPointer"></div>
+                        <canvas id="colorWheel" width="260" height="260"></canvas>
                     </div>
 
                     <div class="picker-wrapper">
@@ -417,7 +397,6 @@
     <script>
         const canvas = document.getElementById('colorWheel');
         const ctx = canvas.getContext('2d');
-        const pointer = document.getElementById('wheelPointer');
         const wheelContainer = document.getElementById('wheelContainer');
         
         const baseColorPicker = document.getElementById('baseColorPicker');
@@ -428,24 +407,83 @@
         const shadowVal = document.getElementById('shadowVal');
         const highlightVal = document.getElementById('highlightVal');
 
-        const radius = canvas.width / 2;
-        let isSliding = false;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const outerRadius = canvas.width / 2 - 2;
+        const innerRadius = outerRadius - 24; // Width of ring is 24px
+        const diamondSize = innerRadius * 0.95; // Math bounds for box inside
 
-        function drawColorWheel() {
-            for (let y = 0; y < canvas.height; y++) {
-                for (let x = 0; x < canvas.width; x++) {
-                    let rx = x - radius;
-                    let ry = y - radius;
-                    let d = Math.sqrt(rx * rx + ry * ry);
-                    
-                    if (d <= radius) {
-                        let angle = Math.atan2(ry, rx) * (180 / Math.PI) + 180;
-                        let sat = (d / radius) * 100;
-                        ctx.fillStyle = `hsl(${angle}, ${sat}%, 50%)`;
-                        ctx.fillRect(x, y, 1, 1);
-                    }
-                }
+        let currentHue = 240; // Default HSL
+        let currentSat = 100;
+        let currentLight = 50;
+        let activeZone = null; // 'ring' or 'diamond'
+
+        function drawPicker() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Vẽ Vòng tròn Hue phía ngoài
+            for (let i = 0; i < 360; i++) {
+                let startAngle = (i - 90) * Math.PI / 180;
+                let endAngle = (i - 88) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, (outerRadius + innerRadius)/2, startAngle, endAngle);
+                ctx.strokeStyle = `hsl(${i}, 100%, 50%)`;
+                ctx.lineWidth = (outerRadius - innerRadius);
+                ctx.stroke();
             }
+
+            // 2. Vẽ Hình vuông xoay (Hình thoi) ở tâm
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(45 * Math.PI / 180); // Xoay 45 độ để tạo hình thoi giống ibisPaint
+            
+            const boxTopLeft = -diamondSize / 2;
+            
+            // Vẽ lớp nền màu gốc chạy ngang (Độ bão hòa Saturation)
+            let gradH = ctx.createLinearGradient(boxTopLeft, 0, boxTopLeft + diamondSize, 0);
+            gradH.addColorStop(0, '#fff');
+            gradH.addColorStop(1, `hsl(${currentHue}, 100%, 50%)`);
+            ctx.fillStyle = gradH;
+            ctx.fillRect(boxTopLeft, boxTopLeft, diamondSize, diamondSize);
+
+            // Phủ lớp lột tả bóng tối chạy dọc (Lightness/Value)
+            let gradV = ctx.createLinearGradient(0, boxTopLeft, 0, boxTopLeft + diamondSize);
+            gradV.addColorStop(0, 'rgba(0,0,0,0)');
+            gradV.addColorStop(1, '#000');
+            ctx.fillStyle = gradV;
+            ctx.fillRect(boxTopLeft, boxTopLeft, diamondSize, diamondSize);
+            ctx.restore();
+
+            // 3. Vẽ Vòng tròn nhỏ biểu thị vị trí đang chọn trên Vòng Hue
+            let hueAngle = (currentHue - 90) * Math.PI / 180;
+            let rCenter = (outerRadius + innerRadius) / 2;
+            let ringX = centerX + rCenter * Math.cos(hueAngle);
+            let ringY = centerY + rCenter * Math.sin(hueAngle);
+            
+            ctx.beginPath();
+            ctx.arc(ringX, ringY, 6, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
+            ctx.stroke();
+            ctx.shadowBlur = 0; // Reset shadow
+
+            // 4. Vẽ Vòng tròn nhỏ biểu thị vị trí trên Hình thoi
+            // Biến đổi ngược tọa độ Saturation & Lightness về không gian Canvas 2D
+            let satX = (currentSat / 100) * diamondSize - (diamondSize / 2);
+            let litY = ((100 - (currentLight / (100 - (currentSat/100)*50) * 100)) / 100) * diamondSize - (diamondSize / 2);
+            
+            // Xoay thuận tọa độ vẽ con trỏ 45 độ theo khối hộp tâm
+            let rad45 = 45 * Math.PI / 180;
+            let diaX = centerX + (satX * Math.cos(rad45) - litY * Math.sin(rad45));
+            let diaY = centerY + (satX * Math.sin(rad45) + litY * Math.cos(rad45));
+
+            ctx.beginPath();
+            ctx.arc(diaX, diaY, 6, 0, Math.PI * 2);
+            ctx.strokeStyle = currentLight > 60 ? '#000000' : '#ffffff';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
         }
 
         function hexToHsl(hex) {
@@ -481,33 +519,33 @@
         }
 
         function calculatePalette() {
-            const baseHex = baseColorPicker.value;
+            const baseHex = hslToHex(currentHue, currentSat, currentLight);
+            baseColorPicker.value = baseHex;
             baseHexInput.value = baseHex.toUpperCase();
             
             document.getElementById('circlePreview').style.backgroundColor = baseHex;
             
-            const hsl = hexToHsl(baseHex);
             const sIntensity = shadowSlider.value / 100;
             const hIntensity = highlightSlider.value / 100;
 
             shadowVal.innerText = `${shadowSlider.value}%`;
             highlightVal.innerText = `${highlightSlider.value}%`;
 
-            let shadowH = (hsl.h + 15) % 360; 
-            let shadowS = Math.min(100, hsl.s + (15 * sIntensity));
-            let shadowL = Math.max(5, hsl.l - (45 * sIntensity));
+            let shadowH = (currentHue + 15) % 360; 
+            let shadowS = Math.min(100, currentSat + (15 * sIntensity));
+            let shadowL = Math.max(5, currentLight - (45 * sIntensity));
             const shadowHex = hslToHex(shadowH, shadowS, shadowL);
 
-            let highlightH = (hsl.h - 10 + 360) % 360;
-            let highlightS = Math.max(10, hsl.s - (20 * hIntensity));
-            let highlightL = Math.min(98, hsl.l + (40 * hIntensity));
+            let highlightH = (currentHue - 10 + 360) % 360;
+            let highlightS = Math.max(10, currentSat - (20 * hIntensity));
+            let highlightL = Math.min(98, currentLight + (40 * hIntensity));
             const highlightHex = hslToHex(highlightH, highlightS, highlightL);
 
             updateUI('base', baseHex);
             updateUI('shadow', shadowHex);
             updateUI('highlight', highlightHex);
             
-            if(!isSliding) movePointerFromHsl(hsl.h, hsl.s);
+            drawPicker();
         }
 
         function updateUI(role, hex) {
@@ -516,58 +554,66 @@
             document.getElementById(`preview${role.charAt(0).toUpperCase() + role.slice(1)}`).style.backgroundColor = hex;
         }
 
-        function movePointerFromHsl(h, s) {
-            let angle = (h - 180) * (Math.PI / 180);
-            let dist = (s / 100) * radius;
-            let x = radius + dist * Math.cos(angle);
-            let y = radius + dist * Math.sin(angle);
-            pointer.style.left = `${x}px`;
-            pointer.style.top = `${y}px`;
-        }
-
-        function handleWheelColor(e) {
+        function handlePointer(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             
             const x = clientX - rect.left;
             const y = clientY - rect.top;
-            const rx = x - radius;
-            const ry = y - radius;
+            
+            const rx = x - centerX;
+            const ry = y - centerY;
             const d = Math.sqrt(rx * rx + ry * ry);
 
-            let finalX = x;
-            let finalY = y;
-            let currentDist = d;
-
-            if (d > radius) {
-                finalX = radius + (rx / d) * radius;
-                finalY = radius + (ry / d) * radius;
-                currentDist = radius;
+            if (!activeZone) {
+                if (d >= innerRadius && d <= outerRadius + 8) activeZone = 'ring';
+                else activeZone = 'diamond';
             }
 
-            pointer.style.left = `${finalX}px`;
-            pointer.style.top = `${finalY}px`;
+            if (activeZone === 'ring') {
+                let angle = Math.atan2(ry, rx) * (180 / Math.PI) + 90;
+                if (angle < 0) angle += 360;
+                currentHue = angle;
+            } else if (activeZone === 'diamond') {
+                // Biến đổi hệ trục tọa độ Canvas thông thường ngược xoay 45 độ
+                let rad45 = -45 * Math.PI / 180;
+                let rotX = rx * Math.cos(rad45) - ry * Math.sin(rad45);
+                let rotY = rx * Math.sin(rad45) + ry * Math.cos(rad45);
 
-            let angle = Math.atan2(finalY - radius, finalX - radius) * (180 / Math.PI) + 180;
-            let sat = (currentDist / radius) * 100;
-            
-            const currentHsl = hexToHsl(baseColorPicker.value);
-            const pickedHex = hslToHex(angle, sat, currentHsl.l || 50);
-            
-            baseColorPicker.value = pickedHex;
+                // Giới hạn tọa độ nằm trọn bên trong khung hình thoi
+                let halfSize = diamondSize / 2;
+                rotX = Math.max(-halfSize, Math.min(halfSize, rotX));
+                rotY = Math.max(-halfSize, Math.min(halfSize, rotY));
+
+                // Quy đổi vị trí pixel sang tỷ lệ phần trăm HSL (Saturation & Lightness)
+                let pctX = (rotX + halfSize) / diamondSize;
+                let pctY = (rotY + halfSize) / diamondSize;
+
+                currentSat = Math.round(pctX * 100);
+                // Thuật toán bọc để chuyển đổi Sat/Val sang Sat/Lightness đồng nhất
+                let v = 1 - pctY;
+                currentLight = Math.round((v * (1 - (pctX * 0.5))) * 100);
+                currentLight = Math.max(0, Math.min(100, currentLight));
+            }
+
             calculatePalette();
         }
 
-        wheelContainer.addEventListener('mousedown', (e) => { isSliding = true; handleWheelColor(e); });
-        window.addEventListener('mousemove', (e) => { if (isSliding) handleWheelColor(e); });
-        window.addEventListener('mouseup', () => { isSliding = false; });
+        canvas.addEventListener('mousedown', (e) => { activeZone = null; handlePointer(e); });
+        window.addEventListener('mousemove', (e) => { if (activeZone) handlePointer(e); });
+        window.addEventListener('mouseup', () => { activeZone = null; });
 
-        wheelContainer.addEventListener('touchstart', (e) => { isSliding = true; handleWheelColor(e); }, { passive: true });
-        window.addEventListener('touchmove', (e) => { if (isSliding) handleWheelColor(e); }, { passive: true });
-        window.addEventListener('touchend', () => { isSliding = false; });
+        canvas.addEventListener('touchstart', (e) => { activeZone = null; handlePointer(e); }, { passive: true });
+        window.addEventListener('touchmove', (e) => { if (activeZone) handlePointer(e); }, { passive: true });
+        window.addEventListener('touchend', () => { activeZone = null; });
 
-        baseColorPicker.addEventListener('input', calculatePalette);
+        baseColorPicker.addEventListener('input', (e) => {
+            const hsl = hexToHsl(e.target.value);
+            currentHue = hsl.h; currentSat = hsl.s; currentLight = hsl.l;
+            calculatePalette();
+        });
+
         shadowSlider.addEventListener('input', calculatePalette);
         highlightSlider.addEventListener('input', calculatePalette);
 
@@ -575,19 +621,18 @@
             let val = e.target.value;
             if(!val.startsWith('#')) val = '#' + val;
             if(val.length === 7 && /^#[0-9A-F]{6}$/i.test(val)) {
-                baseColorPicker.value = val;
+                const hsl = hexToHsl(val);
+                currentHue = hsl.h; currentSat = hsl.s; currentLight = hsl.l;
                 calculatePalette();
             }
         });
 
-        // --- FULLY FIXED HTTPS CLIPBOARD METHOD ---
         window.copyToClipboard = function(id) {
             const text = document.getElementById(id).innerText;
-            
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(text)
                     .then(() => showToast(`Copied: ${text}`))
-                    .catch(err => useFallbackCopy(text));
+                    .catch(() => useFallbackCopy(text));
             } else {
                 useFallbackCopy(text);
             }
@@ -596,7 +641,7 @@
         function useFallbackCopy(text) {
             const dummy = document.createElement('textarea');
             dummy.value = text;
-            dummy.style.position = 'fixed'; // Avoid scrolling
+            dummy.style.position = 'fixed';
             document.body.appendChild(dummy);
             dummy.select();
             try {
@@ -615,8 +660,9 @@
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
-        // Init Setup
-        drawColorWheel();
+        // Khởi tạo ban đầu cho hệ màu mặc định
+        const initHsl = hexToHsl(baseColorPicker.value);
+        currentHue = initHsl.h; currentSat = initHsl.s; currentLight = initHsl.l;
         calculatePalette();
     </script>
 </body>
