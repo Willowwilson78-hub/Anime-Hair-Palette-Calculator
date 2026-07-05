@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Hair Color Calculator</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a, #1e1b4b, #311042);
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --glass-blur: blur(16px);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #d946ef;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none; /* Prevents text selection while sliding */
+        }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .glow-circle {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: rgba(217, 70, 239, 0.12);
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 0;
+        }
+        .glow-1 { top: 5%; left: 15%; }
+        .glow-2 { bottom: 5%; right: 15%; background: rgba(99, 102, 241, 0.12); }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #f472b6, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            align-self: flex-start;
+        }
+
+        /* --- Color Wheel Real-time Sliding Setup --- */
+        .wheel-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            margin: 10px 0;
+            touch-action: none; /* Prevents scrolling on mobile while sliding */
+        }
+
+        canvas {
+            border-radius: 50%;
+            cursor: crosshair;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border: 2px solid var(--glass-border);
+            width: 100%;
+            height: 100%;
+        }
+
+        .wheel-pointer {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2.5px solid #ffffff;
+            border-radius: 50%;
+            background: transparent;
+            box-shadow: 0 0 6px rgba(0,0,0,0.8);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            top: 50%;
+            left: 50%;
+            will-change: top, left; /* Performance boost for smooth real-time rendering */
+        }
+
+        .picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            width: 100%;
+        }
+
+        /* --- PERFECT 1:1 RATIO CSS CIRCLE MASK --- */
+        .custom-color-circle {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            background-color: #6366f1;
+            box-sizing: border-box;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        /* Entirely hides native ugly color box but leaves touch hitbox fully transparent on top */
+        .custom-color-circle input[type="color"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            transform: translate(-25%, -25%);
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .hex-input {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-family: monospace;
+            width: 100%;
+            outline: none;
+        }
+
+        /* Sliders */
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        /* Preview Panel */
+        .preview-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .palette-display {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .color-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 12px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .color-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .color-swatch {
+            width: 55px;
+            height: 55px;
+            border-radius: 10px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.15);
+        }
+
+        .color-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .color-role {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .color-value {
+            font-family: monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .hair-preview-box {
+            height: 100px;
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .hair-layer {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(217, 70, 239, 0.9);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+    <div class="glow-circle glow-1"></div>
+    <div class="glow-circle glow-2"></div>
+
+    <div class="container">
+        <header>
+            <h1>Anime Hair Palette Generator</h1>
+            <p>Slide smoothly on the wheel or fine-tune sliders for real-time calculation</p>
+        </header>
+
+        <div class="workspace">
+            <div class="control-panel">
+                <div class="input-group">
+                    <label>Base Color Selector</label>
+                    
+                    <div class="wheel-container" id="wheelContainer">
+                        <canvas id="colorWheel" width="220" height="220"></canvas>
+                        <div class="wheel-pointer" id="wheelPointer"></div>
+                    </div>
+
+                    <div class="picker-wrapper">
+                        <!-- Enhanced perfectly round mask -->
+                        <div class="custom-color-circle" id="circlePreview">
+                            <input type="color" id="baseColorPicker" value="#6366f1">
+                        </div>
+                        <input type="text" id="baseHexInput" class="hex-input" value="#6366f1" maxlength="7">
+                    </div>
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label>Shadow Intensity</label>
+                        <span id="shadowVal">40%</span>
+                    </div>
+                    <input type="range" id="shadowSlider" min="10" max="80" value="40">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label>Highlight Intensity</label>
+                        <span id="highlightVal">35%</span>
+                    </div>
+                    <input type="range" id="highlightSlider" min="10" max="80" value="35">
+                </div>
+            </div>
+
+            <div class="preview-panel">
+                <div class="palette-display">
+                    <!-- Cards with click bounce but NO clipboard copy actions -->
+                    <div class="color-card" onclick="triggerCardVisual('highlightHex')">
+                        <div class="color-swatch" id="highlightSwatch"></div>
+                        <div class="color-info">
+                            <span class="color-role">Highlight (Tint)</span>
+                            <span class="color-value" id="highlightHex">#FFFFFF</span>
+                        </div>
+                    </div>
+
+                    <div class="color-card" onclick="triggerCardVisual('baseHex')">
+                        <div class="color-swatch" id="baseSwatch"></div>
+                        <div class="color-info">
+                            <span class="color-role">Base Color</span>
+                            <span class="color-value" id="baseHex">#6366f1</span>
+                        </div>
+                    </div>
+
+                    <div class="color-card" onclick="triggerCardVisual('shadowHex')">
+                        <div class="color-swatch" id="shadowSwatch"></div>
+                        <div class="color-info">
+                            <span class="color-role">Shadow (Shade)</span>
+                            <span class="color-value" id="shadowHex">#000000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hair-preview-box">
+                    <div class="hair-layer" id="previewHighlight">Highlight</div>
+                    <div class="hair-layer" id="previewBase">Base</div>
+                    <div class="hair-layer" id="previewShadow">Shadow</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast message modified for interaction acknowledgement without copying -->
+    <div class="toast" id="toast">Color selected!</div>
+
+    <script>
+        const canvas = document.getElementById('colorWheel');
+        const ctx = canvas.getContext('2d');
+        const pointer = document.getElementById('wheelPointer');
+        const wheelContainer = document.getElementById('wheelContainer');
+        
+        const baseColorPicker = document.getElementById('baseColorPicker');
+        const baseHexInput = document.getElementById('baseHexInput');
+        const shadowSlider = document.getElementById('shadowSlider');
+        const highlightSlider = document.getElementById('highlightSlider');
+
+        const shadowVal = document.getElementById('shadowVal');
+        const highlightVal = document.getElementById('highlightVal');
+
+        const radius = canvas.width / 2;
+        let isSliding = false;
+
+        function drawColorWheel() {
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    let rx = x - radius;
+                    let ry = y - radius;
+                    let d = Math.sqrt(rx * rx + ry * ry);
+                    
+                    if (d <= radius) {
+                        let angle = Math.atan2(ry, rx) * (180 / Math.PI) + 180;
+                        let sat = (d / radius) * 100;
+                        ctx.fillStyle = `hsl(${angle}, ${sat}%, 50%)`;
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+        }
+
+        function hexToHsl(hex) {
+            let r = parseInt(hex.slice(1, 3), 16) / 255;
+            let g = parseInt(hex.slice(3, 5), 16) / 255;
+            let b = parseInt(hex.slice(5, 7), 16) / 255;
+            let max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) { h = s = 0; } 
+            else {
+                let d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return { h: h * 360, s: s * 100, l: l * 100 };
+        }
+
+        function hslToHex(h, s, l) {
+            l /= 100;
+            const a = s * Math.min(l, 1 - l) / 100;
+            const f = n => {
+                const k = (n + h / 30) % 12;
+                const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                return Math.round(255 * color).toString(16).padStart(2, '0');
+            };
+            return `#${f(0)}${f(8)}${f(4)}`;
+        }
+
+        function calculatePalette() {
+            const baseHex = baseColorPicker.value;
+            baseHexInput.value = baseHex.toUpperCase();
+            
+            // Updates the round mask container background color directly in real-time
+            document.getElementById('circlePreview').style.backgroundColor = baseHex;
+            
+            const hsl = hexToHsl(baseHex);
+            const sIntensity = shadowSlider.value / 100;
+            const hIntensity = highlightSlider.value / 100;
+
+            shadowVal.innerText = `${shadowSlider.value}%`;
+            highlightVal.innerText = `${highlightSlider.value}%`;
+
+            let shadowH = (hsl.h + 15) % 360; 
+            let shadowS = Math.min(100, hsl.s + (15 * sIntensity));
+            let shadowL = Math.max(5, hsl.l - (45 * sIntensity));
+            const shadowHex = hslToHex(shadowH, shadowS, shadowL);
+
+            let highlightH = (hsl.h - 10 + 360) % 360;
+            let highlightS = Math.max(10, hsl.s - (20 * hIntensity));
+            let highlightL = Math.min(98, hsl.l + (40 * hIntensity));
+            const highlightHex = hslToHex(highlightH, highlightS, highlightL);
+
+            updateUI('base', baseHex);
+            updateUI('shadow', shadowHex);
+            updateUI('highlight', highlightHex);
+            
+            if(!isSliding) movePointerFromHsl(hsl.h, hsl.s);
+        }
+
+        function updateUI(role, hex) {
+            document.getElementById(`${role}Swatch`).style.backgroundColor = hex;
+            document.getElementById(`${role}Hex`).innerText = hex.toUpperCase();
+            document.getElementById(`preview${role.charAt(0).toUpperCase() + role.slice(1)}`).style.backgroundColor = hex;
+        }
+
+        function movePointerFromHsl(h, s) {
+            let angle = (h - 180) * (Math.PI / 180);
+            let dist = (s / 100) * radius;
+            let x = radius + dist * Math.cos(angle);
+            let y = radius + dist * Math.sin(angle);
+            pointer.style.left = `${x}px`;
+            pointer.style.top = `${y}px`;
+        }
+
+        function handleWheelColor(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            const rx = x - radius;
+            const ry = y - radius;
+            const d = Math.sqrt(rx * rx + ry * ry);
+
+            let finalX = x;
+            let finalY = y;
+            let currentDist = d;
+
+            if (d > radius) {
+                finalX = radius + (rx / d) * radius;
+                finalY = radius + (ry / d) * radius;
+                currentDist = radius;
+            }
+
+            pointer.style.left = `${finalX}px`;
+            pointer.style.top = `${finalY}px`;
+
+            let angle = Math.atan2(finalY - radius, finalX - radius) * (180 / Math.PI) + 180;
+            let sat = (currentDist / radius) * 100;
+            
+            const currentHsl = hexToHsl(baseColorPicker.value);
+            const pickedHex = hslToHex(angle, sat, currentHsl.l || 50);
+            
+            baseColorPicker.value = pickedHex;
+            calculatePalette();
+        }
+
+        // Desktop Mouse Listeners
+        wheelContainer.addEventListener('mousedown', (e) => { isSliding = true; handleWheelColor(e); });
+        window.addEventListener('mousemove', (e) => { if (isSliding) handleWheelColor(e); });
+        window.addEventListener('mouseup', () => { isSliding = false; });
+
+        // Mobile Touch Listeners
+        wheelContainer.addEventListener('touchstart', (e) => { isSliding = true; handleWheelColor(e); }, { passive: true });
+        window.addEventListener('touchmove', (e) => { if (isSliding) handleWheelColor(e); }, { passive: true });
+        window.addEventListener('touchend', () => { isSliding = false; });
+
+        baseColorPicker.addEventListener('input', calculatePalette);
+        shadowSlider.addEventListener('input', calculatePalette);
+        highlightSlider.addEventListener('input', calculatePalette);
+
+        baseHexInput.addEventListener('input', (e) => {
+            let val = e.target.value;
+            if(!val.startsWith('#')) val = '#' + val;
+            if(val.length === 7 && /^#[0-9A-F]{6}$/i.test(val)) {
+                baseColorPicker.value = val;
+                calculatePalette();
+            }
+        });
+
+        // --- HITBOX ONLY (NO CLIPBOARD COPIES) ---
+        window.triggerCardVisual = function(id) {
+            const text = document.getElementById(id).innerText;
+            const toast = document.getElementById('toast');
+            toast.innerText = `Selected: ${text}`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1500);
+        }
+
+        // Init Setup
+        drawColorWheel();
+        calculatePalette();
+    </script>
+</body>
+</html>
