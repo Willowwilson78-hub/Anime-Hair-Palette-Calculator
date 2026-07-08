@@ -1,5 +1,5 @@
 # Anime-Hair-Color-Calculator
-<a href="https://willowwilson78-hub.github.io/Anime-Hair-Color-Calculator/">
+<a href="https://willowwilson78-hub.github.io/Anime-Hair-Palette-Calculator/">
   <img
     src="https://github.com/user-attachments/assets/6a7dcb81-edab-47df-929e-734068e34831"
     alt="Demo"
